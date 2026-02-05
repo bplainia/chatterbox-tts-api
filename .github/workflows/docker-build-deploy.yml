@@ -34,9 +34,7 @@ jobs:
             dockerfile: docker/Dockerfile
             suffix: "-frontend"
             platforms: linux/amd64
-            build-args: |
-              ENABLE_FRONTEND=true
-            compose-profile: frontend
+            context: frontend
             
           # CPU-only build
           - name: "CPU Only"
@@ -109,7 +107,7 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: ${{ matrix.context || '.' }}
           file: ${{ matrix.dockerfile }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
