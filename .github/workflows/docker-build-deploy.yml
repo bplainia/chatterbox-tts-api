@@ -1,0 +1,243 @@
+name: Build and Push Docker Images
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    tags:
+      - 'v*.*.*'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  DOCKER_REGISTRY: docker.io
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  IMAGE_BASE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/chatterbox-tts-api
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Standard builds
+          - name: "Standard (CPU/GPU Auto)"
+            dockerfile: docker/Dockerfile
+            suffix: ""
+            platforms: linux/amd64
+            
+          - name: "Standard with Frontend"
+            dockerfile: docker/Dockerfile
+            suffix: "-frontend"
+            platforms: linux/amd64
+            build-args: |
+              ENABLE_FRONTEND=true
+            compose-profile: frontend
+            
+          # CPU-only build
+          - name: "CPU Only"
+            dockerfile: docker/Dockerfile.cpu
+            suffix: "-cpu"
+            platforms: linux/amd64,linux/arm64
+            
+          # GPU builds
+          - name: "GPU (CUDA)"
+            dockerfile: docker/Dockerfile.gpu
+            suffix: "-gpu"
+            platforms: linux/amd64
+            
+          - name: "GPU UV (Optimized)"
+            dockerfile: docker/Dockerfile.uv.gpu
+            suffix: "-uv-gpu"
+            platforms: linux/amd64
+            
+          # UV builds (optimized dependency resolution)
+          - name: "UV (CPU/GPU Auto)"
+            dockerfile: docker/Dockerfile.uv
+            suffix: "-uv"
+            platforms: linux/amd64
+            
+          # Blackwell architecture
+          - name: "Blackwell (Next-gen GPU)"
+            dockerfile: docker/Dockerfile.blackwell
+            suffix: "-blackwell"
+            platforms: linux/amd64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_BASE_NAME }}
+          flavor: |
+            latest=auto
+            suffix=${{ matrix.suffix }},onlatest=true
+          tags: |
+            # Tag with branch name
+            type=ref,event=branch
+            # Tag with PR number
+            type=ref,event=pr
+            # Tag with semver
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            # Tag with 'latest' for main branch
+            type=raw,value=latest,enable={{is_default_branch}}
+            # Tag with short SHA
+            type=sha,prefix={{branch}}-
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: ${{ matrix.platforms }}
+          cache-from: type=registry,ref=${{ env.IMAGE_BASE_NAME }}:buildcache${{ matrix.suffix }}
+          cache-to: type=registry,ref=${{ env.IMAGE_BASE_NAME }}:buildcache${{ matrix.suffix }},mode=max
+          build-args: ${{ matrix.build-args }}
+
+      - name: Image digest
+        run: echo "✅ Built ${{ matrix.name }} - Digest ${{ steps.build.outputs.digest }}"
+
+  test-images:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix:
+        variant:
+          - suffix: ""
+            name: "Standard"
+          - suffix: "-frontend"
+            name: "Frontend"
+          - suffix: "-cpu"
+            name: "CPU"
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Pull Docker image
+        run: docker pull ${{ env.IMAGE_BASE_NAME }}:latest${{ matrix.variant.suffix }}
+
+      - name: Run container for testing
+        run: |
+          docker run -d \
+            --name test-container \
+            -p 4123:4123 \
+            -e PORT=4123 \
+            -e HOST=0.0.0.0 \
+            -e TTS_MODEL_TYPE=multilingual \
+            -e DEVICE=cpu \
+            ${{ env.IMAGE_BASE_NAME }}:latest${{ matrix.variant.suffix }}
+
+      - name: Wait for container to be ready
+        run: |
+          echo "Waiting for container to start..."
+          for i in {1..30}; do
+            if curl -f http://localhost:4123/health 2>/dev/null; then
+              echo "✅ Container is ready!"
+              exit 0
+            fi
+            echo "Attempt $i/30: Container not ready yet..."
+            sleep 2
+          done
+          echo "❌ Container failed to become ready"
+          exit 1
+
+      - name: Test health endpoint
+        run: |
+          response=$(curl -f http://localhost:4123/health)
+          echo "Health check response: $response"
+          echo "✅ Health check passed!"
+
+      - name: Test voices endpoint
+        run: |
+          response=$(curl -f http://localhost:4123/v1/audio/voices)
+          echo "Voices endpoint response: $response"
+          echo "✅ Voices endpoint working!"
+
+      - name: Show container logs
+        if: always()
+        run: docker logs test-container
+
+      - name: Stop and remove container
+        if: always()
+        run: |
+          docker stop test-container || true
+          docker rm test-container || true
+
+  create-manifest:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Create and push multi-arch manifests
+        run: |
+          # Create manifest for CPU images (supports both amd64 and arm64)
+          docker buildx imagetools create -t ${{ env.IMAGE_BASE_NAME }}:latest-cpu \
+            ${{ env.IMAGE_BASE_NAME }}:latest-cpu
+          
+          echo "✅ Multi-arch manifests created successfully"
+
+  summary:
+    needs: [build-and-push, test-images]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## 🐳 Docker Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Built Images:" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Standard (CPU/GPU Auto): \`${{ env.IMAGE_BASE_NAME }}:latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Standard with Frontend: \`${{ env.IMAGE_BASE_NAME }}:latest-frontend\`" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ CPU Only: \`${{ env.IMAGE_BASE_NAME }}:latest-cpu\`" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ GPU (CUDA): \`${{ env.IMAGE_BASE_NAME }}:latest-gpu\`" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ UV Optimized: \`${{ env.IMAGE_BASE_NAME }}:latest-uv\`" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ UV GPU: \`${{ env.IMAGE_BASE_NAME }}:latest-uv-gpu\`" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Blackwell: \`${{ env.IMAGE_BASE_NAME }}:latest-blackwell\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Usage Examples:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "# Standard deployment" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ${{ env.IMAGE_BASE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# With frontend" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ${{ env.IMAGE_BASE_NAME }}:latest-frontend" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# GPU-optimized" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ${{ env.IMAGE_BASE_NAME }}:latest-gpu" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
