@@ -39,6 +39,7 @@ class ModelInfo(BaseModel):
     """Individual model information"""
 
     id: str
+    name: str
     object: str
     created: int
     owned_by: str

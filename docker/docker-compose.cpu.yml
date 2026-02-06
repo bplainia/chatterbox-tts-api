@@ -26,3 +26,8 @@ services:
     environment:
       DEVICE: cpu
       TTS_MODEL_TYPE: ${TTS_MODEL_TYPE:-multilingual}
+    volumes:
+      - ../app:/app/app:ro
+      - ../tests:/app/tests:ro
+      - ../requirements.txt:/app/requirements.txt:ro
+      - ../pyproject.toml:/app/pyproject.toml:ro

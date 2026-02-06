@@ -215,6 +215,35 @@ class VoiceLibrary:
         voices.sort(key=lambda x: x["upload_date"], reverse=True)
         return voices
     
+    def get_voice_names(self) -> List[str]:
+        """
+        Get a simple list of voice names (without full metadata)
+        
+        Returns:
+            List of voice names (strings only)
+        """
+        voice_names = []
+        voices_to_remove = []
+        
+        for voice_name, metadata in self._metadata["voices"].items():
+            voice_path = Path(metadata["path"])
+            if voice_path.exists():
+                voice_names.append(voice_name)
+            else:
+                # Mark for removal if file is missing
+                voices_to_remove.append(voice_name)
+        
+        # Clean up missing files from metadata
+        for voice_name in voices_to_remove:
+            del self._metadata["voices"][voice_name]
+        
+        if voices_to_remove:
+            self._save_metadata()
+        
+        # Sort alphabetically
+        voice_names.sort()
+        return voice_names
+    
     def delete_voice(self, voice_name: str) -> bool:
         """
         Delete a voice from the library

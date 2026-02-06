@@ -70,6 +70,10 @@ services:
       <<: *common-environment
     volumes:
       - ${VOICE_SAMPLE_HOST_PATH:-../voice-sample.mp3}:/app/voice-sample.mp3:ro
+      - ../app:/app/app:ro
+      - ../tests:/app/tests:ro
+      - ../requirements.txt:/app/requirements.txt:ro
+      - ../pyproject.toml:/app/pyproject.toml:ro
       - chatterbox-models:/cache
       - chatterbox-voices:/voices
       - chatterbox-longtext-data:/data/long_text_jobs

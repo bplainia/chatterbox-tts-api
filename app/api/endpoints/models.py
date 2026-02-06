@@ -40,18 +40,21 @@ async def list_models():
         data=[
             ModelInfo(
                 id="chatterbox-tts-1",
+                name="Chatterbox",
                 object="model",
                 created=1677649963,
                 owned_by="resemble-ai",
             ),
             ModelInfo(
                 id="chatterbox-turbo",
+                name="Chatterbox Turbo",
                 object="model",
                 created=1735689600,
                 owned_by="resemble-ai",
             ),
             ModelInfo(
                 id="chatterbox-multilingual",
+                name="Chatterbox Multilingual",
                 object="model",
                 created=1677649963,
                 owned_by="resemble-ai",

@@ -54,16 +54,40 @@ async def get_supported_languages_endpoint():
         )
 
 @router.get(
-    "/voices",
+    "/v1/audio/voices",
     responses={
-        200: {"description": "List of voices in library"},
+        200: {"description": "Array of voice names"},
         500: {"model": ErrorResponse}
     },
-    summary="List all voices in library",
-    description="Get a list of all uploaded voices in the voice library"
+    summary="Get OpenAI voice names array",
+    description="Get an array of voice names from the voice library"
+)
+async def get_voice_names_array():
+    """Get an array of voice names from the voice library"""
+    try:
+        voice_lib = get_voice_library()
+        voice_names = voice_lib.get_voice_names()
+        
+        return {
+            "voices": voice_names
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"error": {"message": f"Failed to get voice names: {str(e)}", "type": "voice_library_error"}}
+        )
+
+@router.get(
+    "/voices",
+    responses={
+        200: {"description": "List of voices in library with metadata"},
+        500: {"model": ErrorResponse}
+    },
+    summary="Get all voices in library with full metadata",
+    description="Get a detailed list of all uploaded voices in the voice library with complete metadata"
 )
 async def list_voices():
-    """List all voices in the voice library"""
+    """List all voices in the voice library with full metadata"""
     try:
         voice_lib = get_voice_library()
         voices = voice_lib.list_voices()
