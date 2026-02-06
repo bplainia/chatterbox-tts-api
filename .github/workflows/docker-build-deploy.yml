@@ -24,7 +24,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Standard builds          - name: "Standard (CPU/GPU Auto)"
+          # Standard builds
+          - name: "Standard (CPU/GPU Auto)"
             dockerfile: docker/Dockerfile
             suffix: ""
             platforms: linux/amd64
