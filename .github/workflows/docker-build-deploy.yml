@@ -24,11 +24,20 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Standard builds
+          # Standard build (CPU/GPU Auto)
           - name: "Standard (CPU/GPU Auto)"
             dockerfile: docker/Dockerfile
             suffix: ""
             platforms: linux/amd64
+            build-args: |
+              BASE_IMAGE=python:3.11-slim
+              PYTORCH_VERSION=2.6.0
+              TORCHVISION_VERSION=0.21.0
+              TORCHAUDIO_VERSION=2.6.0
+              PYTORCH_INDEX=https://download.pytorch.org/whl/cpu
+              DEVICE=auto
+              NEEDS_PYTHON_INSTALL=false
+              EXTRA_PACKAGES=
             
           - name: "Standard with Frontend"
             dockerfile: frontend/Dockerfile
@@ -38,32 +47,48 @@ jobs:
             
           # CPU-only build
           - name: "CPU Only"
-            dockerfile: docker/Dockerfile.cpu
+            dockerfile: docker/Dockerfile
             suffix: "-cpu"
             platforms: linux/amd64,linux/arm64
+            build-args: |
+              BASE_IMAGE=python:3.11-slim
+              PYTORCH_VERSION=2.6.0
+              TORCHVISION_VERSION=0.21.0
+              TORCHAUDIO_VERSION=2.6.0
+              PYTORCH_INDEX=https://download.pytorch.org/whl/cpu
+              DEVICE=cpu
+              NEEDS_PYTHON_INSTALL=false
+              EXTRA_PACKAGES=
             
-          # GPU builds
-          - name: "GPU (CUDA)"
-            dockerfile: docker/Dockerfile.gpu
+          # GPU build (CUDA 12.4)
+          - name: "GPU (CUDA 12.4)"
+            dockerfile: docker/Dockerfile
             suffix: "-gpu"
             platforms: linux/amd64
+            build-args: |
+              BASE_IMAGE=nvidia/cuda:12.4.1-runtime-ubuntu22.04
+              PYTORCH_VERSION=2.6.0
+              TORCHVISION_VERSION=0.21.0
+              TORCHAUDIO_VERSION=2.6.0
+              PYTORCH_INDEX=https://download.pytorch.org/whl/cu124
+              DEVICE=cuda
+              NEEDS_PYTHON_INSTALL=true
+              EXTRA_PACKAGES=setuptools
             
-          - name: "GPU UV (Optimized)"
-            dockerfile: docker/Dockerfile.uv.gpu
-            suffix: "-uv-gpu"
-            platforms: linux/amd64
-            
-          # UV builds (optimized dependency resolution)
-          - name: "UV (CPU/GPU Auto)"
-            dockerfile: docker/Dockerfile.uv
-            suffix: "-uv"
-            platforms: linux/amd64
-            
-          # Blackwell architecture
-          - name: "Blackwell (Next-gen GPU)"
-            dockerfile: docker/Dockerfile.blackwell
+          # Blackwell architecture (CUDA 12.8)
+          - name: "Blackwell (CUDA 12.8)"
+            dockerfile: docker/Dockerfile
             suffix: "-blackwell"
             platforms: linux/amd64
+            build-args: |
+              BASE_IMAGE=nvidia/cuda:12.8.1-runtime-ubuntu22.04
+              PYTORCH_VERSION=2.7.0
+              TORCHVISION_VERSION=0.22.0
+              TORCHAUDIO_VERSION=2.7.0
+              PYTORCH_INDEX=https://download.pytorch.org/whl/cu128
+              DEVICE=cuda
+              NEEDS_PYTHON_INSTALL=true
+              EXTRA_PACKAGES=setuptools
 
     steps:
       - name: Checkout code

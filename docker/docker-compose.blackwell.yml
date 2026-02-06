@@ -12,7 +12,16 @@ version: '3.8'
 services:
   chatterbox-tts:
     build:
-      dockerfile: docker/Dockerfile.blackwell
+      dockerfile: docker/Dockerfile
+      args:
+        BASE_IMAGE: nvidia/cuda:12.8.1-runtime-ubuntu22.04
+        PYTORCH_VERSION: 2.7.0
+        TORCHVISION_VERSION: 0.22.0
+        TORCHAUDIO_VERSION: 2.7.0
+        PYTORCH_INDEX: https://download.pytorch.org/whl/cu128
+        DEVICE: cuda
+        NEEDS_PYTHON_INSTALL: "true"
+        EXTRA_PACKAGES: setuptools
     container_name: chatterbox-tts-api-blackwell
     environment:
       DEVICE: cuda

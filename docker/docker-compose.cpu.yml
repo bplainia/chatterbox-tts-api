@@ -12,7 +12,16 @@ version: '3.8'
 services:
   chatterbox-tts:
     build:
-      dockerfile: docker/Dockerfile.cpu
+      dockerfile: docker/Dockerfile
+      args:
+        BASE_IMAGE: python:3.11-slim
+        PYTORCH_VERSION: 2.6.0
+        TORCHVISION_VERSION: 0.21.0
+        TORCHAUDIO_VERSION: 2.6.0
+        PYTORCH_INDEX: https://download.pytorch.org/whl/cpu
+        DEVICE: cpu
+        NEEDS_PYTHON_INSTALL: "false"
+        EXTRA_PACKAGES: ""
     container_name: chatterbox-tts-api-cpu
     environment:
       DEVICE: cpu

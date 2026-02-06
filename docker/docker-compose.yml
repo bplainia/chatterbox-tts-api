@@ -53,7 +53,16 @@ services:
   chatterbox-tts:
     build:
       context: ..
-      dockerfile: docker/Dockerfile.uv
+      dockerfile: docker/Dockerfile
+      args:
+        BASE_IMAGE: python:3.11-slim
+        PYTORCH_VERSION: 2.6.0
+        TORCHVISION_VERSION: 0.21.0
+        TORCHAUDIO_VERSION: 2.6.0
+        PYTORCH_INDEX: https://download.pytorch.org/whl/cpu
+        DEVICE: auto
+        NEEDS_PYTHON_INSTALL: "false"
+        EXTRA_PACKAGES: ""
     container_name: chatterbox-tts-api
     ports:
       - '${PORT:-4123}:${PORT:-4123}'

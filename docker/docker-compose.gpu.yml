@@ -12,7 +12,16 @@ version: '3.8'
 services:
   chatterbox-tts:
     build:
-      dockerfile: docker/Dockerfile.gpu
+      dockerfile: docker/Dockerfile
+      args:
+        BASE_IMAGE: nvidia/cuda:12.4.1-runtime-ubuntu22.04
+        PYTORCH_VERSION: 2.6.0
+        TORCHVISION_VERSION: 0.21.0
+        TORCHAUDIO_VERSION: 2.6.0
+        PYTORCH_INDEX: https://download.pytorch.org/whl/cu124
+        DEVICE: cuda
+        NEEDS_PYTHON_INSTALL: "true"
+        EXTRA_PACKAGES: setuptools
     container_name: chatterbox-tts-api-gpu
     environment:
       DEVICE: cuda
