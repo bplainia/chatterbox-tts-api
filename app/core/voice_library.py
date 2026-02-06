@@ -576,6 +576,85 @@ class VoiceLibrary:
         
         metadata = self._metadata["voices"][actual_name]
         return metadata.get("language", "en")  # Default to English for backward compatibility
+    
+    def discover_and_import_voices(self, default_language: str = "en") -> Dict[str, List[str]]:
+        """
+        Discover audio files in the library directory that aren't tracked in metadata
+        and import them automatically.
+        
+        Args:
+            default_language: Default language code for discovered voices
+            
+        Returns:
+            Dict with 'imported' (list of imported voice names) and 'skipped' (list of skipped filenames)
+        """
+        imported = []
+        skipped = []
+        
+        # Scan directory for audio files
+        for file_path in self.library_dir.iterdir():
+            if not file_path.is_file():
+                continue
+            
+            # Check if it's a supported audio format
+            if file_path.suffix.lower() not in SUPPORTED_VOICE_FORMATS:
+                continue
+            
+            # Skip metadata and config files
+            if file_path.name in ['voices.json', 'config.json']:
+                continue
+            
+            # Extract voice name from filename (without extension)
+            voice_name = file_path.stem
+            
+            # Skip if already in metadata
+            if voice_name in self._metadata["voices"]:
+                # Verify the path matches
+                existing_path = Path(self._metadata["voices"][voice_name]["path"])
+                if existing_path == file_path:
+                    continue
+            
+            # Import the voice
+            try:
+                # Read the file
+                with open(file_path, 'rb') as f:
+                    file_content = f.read()
+                
+                # Get file stats
+                file_size = file_path.stat().st_size
+                file_hash = self._get_file_hash(file_path)
+                
+                # Create metadata
+                metadata = {
+                    "name": voice_name,
+                    "filename": file_path.name,
+                    "path": str(file_path),
+                    "file_size": file_size,
+                    "file_extension": file_path.suffix.lower(),
+                    "file_hash": file_hash,
+                    "upload_date": datetime.now().isoformat(),
+                    "language": default_language,
+                    "aliases": [],
+                    "discovered": True  # Mark as discovered (not manually uploaded)
+                }
+                
+                # Add to metadata
+                self._metadata["voices"][voice_name] = metadata
+                imported.append(voice_name)
+                
+            except Exception as e:
+                print(f"⚠️ Failed to import {file_path.name}: {e}")
+                skipped.append(file_path.name)
+        
+        # Save metadata if any voices were imported
+        if imported:
+            self._save_metadata()
+            print(f"✅ Discovered and imported {len(imported)} voice(s)")
+        
+        return {
+            "imported": imported,
+            "skipped": skipped
+        }
 
 
 # Global voice library instance
@@ -588,4 +667,18 @@ def get_voice_library() -> VoiceLibrary:
         _voice_library = VoiceLibrary()
         # Initialize the default voice from persistent configuration
         _voice_library.initialize_default_voice()
-    return _voice_library 
+    return _voice_library
+
+def discover_voices_on_startup() -> Dict[str, List[str]]:
+    """
+    Discover and import existing voice files on startup.
+    Should be called during application lifespan startup.
+    
+    Returns:
+        Dict with 'imported' and 'skipped' lists
+    """
+    voice_lib = get_voice_library()
+    result = voice_lib.discover_and_import_voices()
+    if result["imported"]:
+        print(f"📁 Auto-discovered {len(result['imported'])} existing voice file(s)")
+    return result

@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.tts_model import initialize_model
-from app.core.voice_library import get_voice_library
+from app.core.voice_library import get_voice_library, discover_voices_on_startup
 from app.core.background_tasks import start_background_processor, stop_background_processor
 from app.api.router import api_router
 from app.config import Config
@@ -40,6 +40,12 @@ async def lifespan(app: FastAPI):
     # Initialize voice library to restore default voice settings
     print("Initializing voice library...")
     voice_lib = get_voice_library()
+    
+    # Discover existing voice files in the directory
+    print("Discovering existing voice files...")
+    discover_voices_on_startup()
+    
+    # Restore default voice configuration
     default_voice = voice_lib.get_default_voice()
     if default_voice:
         print(f"Restored default voice: {default_voice}")
