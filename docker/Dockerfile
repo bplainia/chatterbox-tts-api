@@ -15,23 +15,39 @@ RUN apt-get update && apt-get install -y \
     libsndfile1 \
     && rm -rf /var/lib/apt/lists/*
 
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
 # Set working directory
 WORKDIR /app
+
+# Create virtual environment
+RUN uv venv --python 3.11
 
 # Activate the virtual environment for subsequent RUN commands
 ENV VIRTUAL_ENV=/app/.venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
-# Install PyTorch with CUDA support (for chatterbox-tts compatibility)
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cu124
+# Install PyTorch with CPU support using uv
+RUN uv pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cpu
 
-# Copy requirements and install other dependencies
-COPY requirements.txt ./
-RUN pip install --no-cache-dir fastapi uvicorn[standard] python-dotenv python-multipart requests psutil pydub sse-starlette
+# Install base dependencies first
+RUN uv pip install fastapi uvicorn[standard] python-dotenv python-multipart requests psutil pydub sse-starlette
+
+# Install resemble-perth specifically (required for watermarker)
+RUN uv pip install resemble-perth
+
+# Verify resemble-perth installation
+RUN . .venv/bin/activate && python -c "import perth; print('✓ resemble-perth installed successfully')"
+
+# Install chatterbox-tts after ensuring perth is available
+# RUN uv pip install chatterbox-tts==1.0.4
 
 # Install chatterbox-tts with Turbo and Multilingual support (spacy-pkuseg made optional)
-RUN pip install git+https://github.com/jimihford/chatterbox.git@spacy-pkuseg-optional
+RUN uv pip install git+https://github.com/jimihford/chatterbox.git@spacy-pkuseg-optional
+
+# Verify full installation
+RUN . .venv/bin/activate && python -c "import chatterbox; import perth; print('✓ All dependencies installed successfully')"
 
 # Copy application code
 COPY app/ ./app/
@@ -71,5 +87,5 @@ EXPOSE ${PORT}
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5m --retries=3 \
     CMD curl -f http://localhost:${PORT}/health || exit 1
 
-# Run the application with the new entry point
+# Run the application using the new entry point
 CMD ["python", "main.py"] 
