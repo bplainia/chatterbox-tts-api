@@ -9,8 +9,6 @@
 # For frontend:
 #   docker compose --profile frontend up
 
-version: '3.8'
-
 x-common-environment: &common-environment
   # API Configuration
   PORT: ${PORT:-4123}
@@ -96,6 +94,8 @@ services:
     depends_on:
       - chatterbox-tts
     restart: unless-stopped
+    volumes:
+      - ../frontend:/app
 
 volumes:
   chatterbox-models:

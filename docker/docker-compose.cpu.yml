@@ -7,8 +7,6 @@
 # Or use the simplified command:
 #   cd docker && docker compose -f docker-compose.cpu.yml up
 
-version: '3.8'
-
 services:
   chatterbox-tts:
     build:
