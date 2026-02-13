@@ -26,11 +26,6 @@ services:
       TTS_MODEL_TYPE: ${TTS_MODEL_TYPE:-turbo}
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
-    volumes:
-      - ../app:/app/app:ro
-      - ../tests:/app/tests:ro
-      - ../requirements.txt:/app/requirements.txt:ro
-      - ../pyproject.toml:/app/pyproject.toml:ro
     deploy:
       resources:
         reservations:

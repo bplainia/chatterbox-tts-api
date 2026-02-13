@@ -8,7 +8,6 @@
 #
 # For frontend:
 #   docker compose --profile frontend up
-
 x-common-environment: &common-environment
   # API Configuration
   PORT: ${PORT:-4123}
@@ -47,6 +46,12 @@ x-common-environment: &common-environment
   HF_TOKEN: ${HF_TOKEN:-}
   HF_HOME: /cache/huggingface
 
+  # Wyoming Protocol Settings
+  ENABLE_WYOMING: ${ENABLE_WYOMING:-true}
+  WYOMING_HOST: ${WYOMING_HOST:-0.0.0.0}
+  WYOMING_PORT: ${WYOMING_PORT:-10200}
+  DEFAULT_VOICE: ${DEFAULT_VOICE:-default}
+
 services:
   chatterbox-tts:
     build:
@@ -64,14 +69,13 @@ services:
     container_name: chatterbox-tts-api
     ports:
       - '${PORT:-4123}:${PORT:-4123}'
+      - '${WYOMING_PORT:-10200}:${WYOMING_PORT:-10200}'
     environment:
       <<: *common-environment
     volumes:
       - ${VOICE_SAMPLE_HOST_PATH:-../voice-sample.mp3}:/app/voice-sample.mp3:ro
       - ../app:/app/app:ro
       - ../tests:/app/tests:ro
-      - ../requirements.txt:/app/requirements.txt:ro
-      - ../pyproject.toml:/app/pyproject.toml:ro
       - chatterbox-models:/cache
       - chatterbox-voices:/voices
       - chatterbox-longtext-data:/data/long_text_jobs
@@ -94,8 +98,6 @@ services:
     depends_on:
       - chatterbox-tts
     restart: unless-stopped
-    volumes:
-      - ../frontend:/app
 
 volumes:
   chatterbox-models:

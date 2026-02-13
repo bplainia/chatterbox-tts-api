@@ -24,6 +24,7 @@
 🚀 **OpenAI-Compatible API** - Drop-in replacement for OpenAI's TTS API  
 ⚡ **FastAPI Performance** - High-performance async API with automatic documentation  
 🌍 **Multilingual Support** - Generate speech in 22 languages with language-aware voice cloning  
+🏠 **Wyoming Protocol** - Native Home Assistant integration for voice assistants  
 🎨 **React Frontend** - Includes an optional, ready-to-use web interface  
 🎭 **Voice Cloning** - Use your own voice samples for personalized speech  
 🎤 **Voice Library Management** - Upload, manage, and use custom voices by name  
@@ -1154,6 +1155,36 @@ git clone --branch stable https://github.com/travisvn/chatterbox-tts-api
 ---
 
 ## 🔗 Integrations
+
+### Home Assistant (Wyoming Protocol)
+
+> [!TIP]
+> Use Wyoming Protocol for native Home Assistant voice assistant integration!
+
+Chatterbox TTS supports the Wyoming Protocol, enabling seamless integration with Home Assistant and other Wyoming-compatible voice assistants.
+
+```bash
+# Start both OpenAI API and Wyoming servers (Wyoming enabled by default)
+docker compose up
+
+# Or run with Python
+python main.py
+```
+
+**Features:**
+- Native Home Assistant TTS integration
+- Access to all your voice library voices
+- Low latency TCP communication
+- Automatic voice discovery
+- Runs alongside OpenAI-compatible API
+
+**Setup in Home Assistant:**
+1. Go to **Settings** → **Devices & Services**
+2. Add **Wyoming Protocol** integration
+3. Enter host and port (default: `tcp://localhost:10200`)
+4. Select your voice in automations and scripts
+
+📖 **[Full Wyoming Protocol Documentation →](docs/WYOMING_PROTOCOL.md)**
 
 ### Open WebUI
 

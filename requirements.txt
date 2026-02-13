@@ -20,6 +20,9 @@ python-multipart>=0.0.6
 # Server-Sent Events support for real-time progress updates
 sse-starlette>=3.0.2
 
+# Wyoming Protocol for Home Assistant integration
+wyoming>=1.5.0
+
 # Environment variables
 python-dotenv>=1.0.0
 
